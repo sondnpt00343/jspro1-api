@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: blog
+      POSTGRES_PASSWORD: blog
+      POSTGRES_DB: jspro1_api
+    ports:
+      - "5432:5432"
+    volumes:
+      - jspro1_api_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blog -d jspro1_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      DATABASE_URL: postgresql://blog:blog@postgres:5432/jspro1_api?schema=public
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      COOKIE_SECURE: "false"
+    ports:
+      - "4000:4000"
+    command: sh -c "npm run db:deploy && npm run db:seed:compiled && node dist/src/server.js"
+
+volumes:
+  jspro1_api_pgdata:

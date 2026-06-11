@@ -1,0 +1,44 @@
+name: jspro1-api
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: jspro1-api-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-jspro1_api}
+    volumes:
+      - jspro1_api_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blog} -d ${POSTGRES_DB:-jspro1_api}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    container_name: jspro1-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-blog}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jspro1_api}?schema=public
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://jspro1-api.f8team.dev}
+      COOKIE_NAME: ${COOKIE_NAME:-blog_session}
+      COOKIE_SECURE: "true"
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
+      PASSWORD_RESET_TTL_MINUTES: ${PASSWORD_RESET_TTL_MINUTES:-30}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1 minute}
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-4101}:4000"
+    command: sh -c "npm run db:deploy && npm run db:seed:compiled && node dist/src/server.js"
+
+volumes:
+  jspro1_api_pgdata:
